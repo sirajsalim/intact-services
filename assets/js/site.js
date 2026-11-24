@@ -124,6 +124,18 @@
   menuBtn.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
   $$('a', nav).forEach((a) => a.addEventListener('click', () => setMenu(false)));
 
+  // Arriving from another page with a #link (e.g. index.html#faq): jump straight there instead of
+  // smooth-scrolling through the whole page, then switch smooth scrolling back on for in-page links.
+  if (location.hash) {
+    const root = document.documentElement;
+    root.style.scrollBehavior = 'auto';
+    window.addEventListener('load', () => {
+      const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      if (target) target.scrollIntoView({ block: 'start' });
+      requestAnimationFrame(() => { root.style.scrollBehavior = ''; });
+    }, { once: true });
+  }
+
   // The header code above runs on every page. Everything below is for the home page only.
   if (!$('#finder')) return;
 
