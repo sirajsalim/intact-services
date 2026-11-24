@@ -65,7 +65,7 @@
   // Pod calculator: hours a month change in steps of STEP, up to MAX per role.
   const STEP = 20;
   const MAX = 800;
-  const POD_DEFAULT = { coordinator: 80 };
+  const POD_DEFAULT = { coordinator: 20 };
 
   // Booking: dummy call slots on the next five weekdays, at these UTC hours.
   const SLOT_HOURS_UTC = [14, 16, 19];
