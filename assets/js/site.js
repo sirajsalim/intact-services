@@ -11,13 +11,24 @@
   // `monthly` below is the price of one full-time person; fewer hours are charged pro rata.
   const FULL_TIME = 160;
   const WEEKS_PER_MONTH = 4;
+  // monthly: example price for one full-time person (see PRICING.md for the research behind it).
+  // inHouse: what a U.S. company pays to employ the same role full-time, fully loaded
+  //          (median salary ÷ 0.70 wage share, BLS ECEC). Sources in PRICING.md.
   const ROLES = {
-    coordinator: { name: 'HR Coordinator', level: 'L1 · Execute', does: 'Onboarding, records, leave and payroll inputs.', monthly: 1000 },
-    recruiter:   { name: 'HR Recruiter', level: 'L1 · Execute', does: 'Sourcing, screening and interview scheduling.', monthly: 1000 },
-    generalist:  { name: 'HR Generalist', level: 'L2 · Own', does: 'Day-to-day HR, policies, performance and employee relations.', monthly: 1800 },
-    partner:     { name: 'HR Business Partner', level: 'L3 · Advise', does: 'Manager coaching, workforce planning and talent.', monthly: 2600 },
-    senior:      { name: 'Senior HR Partner', level: 'L4 · Lead', does: 'HR strategy, org design and leading big changes.', monthly: 3400 },
+    coordinator: { name: 'HR Coordinator', level: 'L1 · Execute', does: 'Onboarding, records, leave and payroll inputs.', monthly: 2400, inHouse: 6000 },
+    recruiter:   { name: 'HR Recruiter', level: 'L1 · Execute', does: 'Sourcing, screening and interview scheduling.', monthly: 2400, inHouse: 9000 },
+    generalist:  { name: 'HR Generalist', level: 'L2 · Own', does: 'Day-to-day HR, policies, performance and employee relations.', monthly: 3600, inHouse: 8900 },
+    partner:     { name: 'HR Business Partner', level: 'L3 · Advise', does: 'Manager coaching, workforce planning and talent.', monthly: 5200, inHouse: 12500 },
+    senior:      { name: 'Senior HR Partner', level: 'L4 · Lead', does: 'HR strategy, org design and leading big changes.', monthly: 7200, inHouse: 16500 },
   };
+
+  // Part-time blocks cost more per hour than full-time, like every fractional HR firm prices them.
+  // Price for h hours = full-time price × (h ÷ 160) ^ PART_TIME_CURVE. 1 = straight pro rata; lower = steeper premium.
+  // With 0.75: 20 hrs ≈ 1.7× the full-time hourly rate, 80 hrs ≈ 1.2×, 160 hrs = 1×.
+  const PART_TIME_CURVE = 0.75;
+
+  // Average U.S. cost to recruit one non-executive hire (SHRM 2025).
+  const HIRE_COST = 5500;
 
   // Commitment options in the Pod calculator.
   const TERMS = [
@@ -55,7 +66,17 @@
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
   const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   const money = (n) => usd.format(Math.round(n));
-  const priceFor = (roleKey, hours) => ROLES[roleKey].monthly * hours / FULL_TIME;
+  // Whole full-time people at the full-time price; any remainder is a part-time block on the curve.
+  // Rounded to the nearest $10 so prices look like a price list, not a calculation.
+  const priceFor = (roleKey, hours) => {
+    const { monthly } = ROLES[roleKey];
+    const full = Math.floor(hours / FULL_TIME);
+    const rest = hours - full * FULL_TIME;
+    const partTime = rest ? monthly * (rest / FULL_TIME) ** PART_TIME_CURVE : 0;
+    return Math.round((monthly * full + partTime) / 10) * 10;
+  };
+  // In-house alternative: at least one full-time hire per role; pro rata above that.
+  const inHouseFor = (roleKey, hours) => Math.round(ROLES[roleKey].inHouse * Math.max(1, hours / FULL_TIME) / 100) * 100;
   const el = (tag, props = {}, children = []) => {
     const node = Object.assign(document.createElement(tag), props);
     node.append(...children);
@@ -127,6 +148,7 @@
     $('#rLevel').textContent = role.level;
     $('#rDoes').textContent = problem.does;
     $('#rPrice').textContent = money(priceFor(problem.role, hours));
+    $('#rCompare').textContent = `Hiring one in-house: ≈ ${money(role.inHouse)}/mo, plus about ${money(HIRE_COST)} to recruit.`;
     $$('button', hoursSeg).forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.hours) === hours)));
   }
 
@@ -175,7 +197,7 @@
         el('span', { className: 'level', textContent: role.level }),
         el('h3', { textContent: role.name }),
         el('p', { textContent: role.does }),
-        el('p', { className: 'pod-rate', textContent: `${money(role.monthly)}/mo full-time (${FULL_TIME} hrs)` }),
+        el('p', { className: 'pod-rate', textContent: `${money(role.monthly)}/mo full-time · in-house ≈ ${money(role.inHouse)}` }),
       ]),
       el('div', { className: 'stepper' }, [minus, out, plus]),
       sub,
@@ -199,8 +221,9 @@
       .map((k) => ({ key: k, hours: pod.hours[k], price: priceFor(k, pod.hours[k]) }));
     // Round the monthly figure first so "per month × months" always matches the total shown.
     const base = Math.round(lines.reduce((s, l) => s + l.price, 0));
-    const monthly = Math.round(base * (1 - pod.term.discount));
-    return { lines, base, monthly, total: monthly * pod.term.months, saved: (base - monthly) * pod.term.months };
+    const monthly = Math.round(base * (1 - pod.term.discount) / 10) * 10;
+    const inHouse = lines.reduce((s, l) => s + inHouseFor(l.key, l.hours), 0);
+    return { lines, base, monthly, inHouse, total: monthly * pod.term.months, saved: (base - monthly) * pod.term.months };
   }
 
   function renderPod() {
@@ -228,6 +251,9 @@
     $('#sumNote').textContent = !t.lines.length ? ''
       : pod.term.months === 1 ? 'Billed monthly.'
       : `${money(t.total)} over ${pod.term.months} months. You save ${money(t.saved)}.`;
+    $('#sumCompare').textContent = t.lines.length
+      ? `Hiring these roles in-house: ≈ ${money(t.inHouse)}/mo, before recruiting costs.`
+      : '';
     $('[data-book="pod"]').disabled = !t.lines.length;
   }
 

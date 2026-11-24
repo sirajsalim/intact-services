@@ -13,13 +13,19 @@ A one-page prototype of a simpler [intact-services.com](https://intact-services.
 5. **Contact.** Book a call, WhatsApp or email.
 6. **Booking dialog.** Pick a day and time, then enter a name and email. No calendar is connected yet.
 
+## Pricing
+
+The example prices come from published competitor pricing and U.S. salary data. See **[PRICING.md](PRICING.md)** for the research, the sources and the proposed rate card.
+
 ## Change the dummy values
 
 Everything lives at the top of [`assets/js/site.js`](assets/js/site.js):
 
 | What | Constant |
 |---|---|
-| Monthly price per role for one full-time person (160 hrs a month) | `ROLES`, `FULL_TIME` |
+| Monthly price per role for one full-time person (160 hrs a month) | `ROLES[…].monthly`, `FULL_TIME` |
+| In-house cost shown next to each price | `ROLES[…].inHouse`, `HIRE_COST` |
+| How much more part-time blocks cost per hour | `PART_TIME_CURVE` |
 | Commitment discounts | `TERMS` |
 | Hero problems, the role each one suggests, and its starting hours | `PROBLEMS` |
 | Hour choices in the hero | `FINDER_HOURS` |
