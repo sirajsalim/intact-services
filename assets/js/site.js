@@ -93,6 +93,21 @@
     return node;
   };
 
+  // Savings line under a price: "Save ≈ $X a month (Y% less)" and what it's compared with.
+  function renderSavings(node, ours, inHouse, against) {
+    const save = inHouse - ours;
+    if (!node) return;
+    if (!ours || save <= 0) { node.replaceChildren(); return; }
+    const pct = Math.round((save / inHouse) * 100);
+    node.replaceChildren(
+      el('p', { className: 'savings-main' }, [
+        el('b', { textContent: `Save ≈ ${money(save)} a month` }),
+        el('span', { className: 'savings-pct', textContent: `(${pct}% less)` }),
+      ]),
+      el('p', { className: 'savings-note', textContent: against }),
+    );
+  }
+
   /* ---------- Header: compact logo on scroll, mobile menu ---------- */
   const header = $('#siteHeader');
   const onScroll = () => header.classList.toggle('is-compact', window.scrollY > 8);
@@ -161,7 +176,9 @@
     $('#rLevel').textContent = role.level;
     $('#rDoes').textContent = problem.does;
     $('#rPrice').textContent = money(priceFor(problem.role, hours));
-    $('#rCompare').textContent = `Hiring one in-house: ≈ ${money(role.inHouse)}/mo, plus about ${money(HIRE_COST)} to recruit.`;
+    const inHouse = inHouseFor(problem.role, hours);
+    renderSavings($('#rSavings'), priceFor(problem.role, hours), inHouse,
+      `vs hiring a full-time ${role.name} in-house (≈ ${money(inHouse)}/mo with benefits), before the ≈ ${money(HIRE_COST)} it costs to recruit one.`);
     $$('button', hoursSeg).forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.hours) === hours)));
   }
 
@@ -276,10 +293,10 @@
     $('#barTotal').textContent = money(t.monthly);
     $('#sumNote').textContent = !t.lines.length ? ''
       : pod.term.months === 1 ? 'Billed monthly.'
-      : `${money(t.total)} over ${pod.term.months} months. You save ${money(t.saved)}.`;
-    $('#sumCompare').textContent = t.lines.length
-      ? `Hiring these roles in-house: ≈ ${money(t.inHouse)}/mo, before recruiting costs.`
-      : '';
+      : `${money(t.total)} over ${pod.term.months} months, including ${money(t.saved)} off for committing.`;
+    const who = t.lines.length === 1 ? `a full-time ${ROLES[t.lines[0].key].name}` : `these ${t.lines.length} roles`;
+    renderSavings($('#sumSavings'), t.monthly, t.inHouse,
+      `vs hiring ${who} in-house (≈ ${money(t.inHouse)}/mo with benefits), before recruiting costs.`);
     $('[data-book="pod"]').disabled = !t.lines.length;
   }
 
