@@ -109,6 +109,9 @@
   menuBtn.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
   $$('a', nav).forEach((a) => a.addEventListener('click', () => setMenu(false)));
 
+  // The header code above runs on every page. Everything below is for the home page only.
+  if (!$('#finder')) return;
+
   /* ---------- Hero: problem finder ---------- */
   const finder = { problem: null, hours: 0 };
   const pickStep = $('[data-step="pick"]');

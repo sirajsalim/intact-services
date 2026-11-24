@@ -51,10 +51,17 @@ Then open <http://localhost:8000>.
 - The logo and favicon are loaded from intact-services.com. Copy them into `assets/` if this site needs to stand on its own.
 - Port the page into the WordPress block theme, so the team can keep editing in WordPress.
 
+## Careers page
+
+[`careers.html`](careers.html) is for job seekers, kept apart from the sales page and linked from the footer only. It has the five roles on the L1–L4 ladder, with links to the job descriptions on the live site, a four-step hiring process, and a short apply form (name, email, city, role, experience, optional LinkedIn, CV up to 5 MB). Like the other forms, it doesn't send anything. Its "Apply" buttons pick that role in the form. The two tests in step 2 match the U.S. HR and English assessments on the live site, but Azar should confirm the process.
+
 ## Files
 
 ```
-index.html            the page
-assets/css/site.css   theme and layout
-assets/js/site.js     problem picker, Pod calculator, booking dialog
+index.html             the sales page
+careers.html           the careers page
+assets/css/site.css    theme and layout for both pages
+assets/js/site.js      header and menu (all pages); problem picker, Pod calculator, booking dialog (home page)
+assets/js/careers.js   apply form
+PRICING.md             pricing research and sources
 ```

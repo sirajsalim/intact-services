@@ -270,6 +270,45 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .modal h2:focus { outline: none; }
 .done .btn { margin-top: 1.25rem; }
 
+/* ---------- Careers page ---------- */
+.hero-solo { max-width: var(--wrap); padding-top: calc(var(--hang) + clamp(1.5rem, 1rem + 2vw, 3rem)); padding-bottom: clamp(3.5rem, 2rem + 5vw, 6rem); }
+.hero-solo h1, .hero-solo .lead { max-width: 46rem; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: .85rem; margin-top: 2rem; }
+.hero-actions .btn:hover { background: var(--w); border-color: var(--w); color: var(--k); }
+.hero-tags.hero-tags-flush { margin-top: 1.5rem; padding-left: 0; }
+
+.jobs { display: grid; gap: .75rem; }
+.job-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1.25rem 2rem; border: 3px solid var(--k); padding: 1.25rem 1.5rem; transition: box-shadow .25s var(--ease); }
+.job-row:hover { box-shadow: inset 8px 0 0 var(--o); }
+.job-meta { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem .75rem; margin-bottom: .55rem; }
+.job-exp { font-weight: 700; font-size: .88rem; color: var(--k-80); }
+.job-info h3 { font-size: 1.3rem; }
+.job-actions { display: grid; justify-items: end; gap: .55rem; }
+.job-jd { font-size: .85rem; font-weight: 600; color: var(--k-80); text-decoration-color: var(--o); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.job-jd:hover { color: var(--o); }
+
+.steps.steps-4 { grid-template-columns: repeat(4, 1fr); }
+
+.apply { background: var(--k); color: var(--w); }
+.apply-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: clamp(2rem, 1rem + 4vw, 4.5rem); align-items: start; }
+.apply h2 { margin-top: .9rem; font-size: clamp(2rem, 1.4rem + 2.4vw, 3.25rem); letter-spacing: -.04em; }
+.apply-lead { margin-top: 1rem; font-size: 1.0625rem; color: var(--w-75); }
+.apply-fine { margin-top: 1.25rem; font-size: .88rem; color: var(--w-75); }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; margin-bottom: 1.25rem; }
+.field-wide { grid-column: 1 / -1; }
+.field select { width: 100%; padding: .7rem .8rem; border: 2px solid var(--k); border-radius: 0; font: inherit; font-weight: 400; background: var(--w); color: var(--k); }
+.field select:focus { outline: 3px solid var(--o); outline-offset: 0; }
+.field input[type="file"] { padding: .55rem; cursor: pointer; }
+.field input:user-invalid, .field select:user-invalid { border-color: var(--o); }
+.apply-panel .done h3 { font-size: 1.6rem; }
+.apply-panel .done h3:focus { outline: none; }
+.apply-panel .done p:not(.fine) { margin-top: .5rem; }
+
+.btn-ghost { background: transparent; color: var(--k); border-color: var(--k); }
+.btn-ghost:hover { background: var(--k); color: var(--w); }
+.footer .footer-strong { color: var(--w); font-weight: 700; }
+.apply + .footer, main:has(> .apply:last-child) + .footer { border-top: 1px solid var(--w-25); }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 960px) {
   :root { --header: 72px; --logo: 104px; }
@@ -287,8 +326,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .menu-btn[aria-expanded="true"] span::before { transform: translateY(6px) rotate(45deg); }
   .menu-btn[aria-expanded="true"] span::after { transform: translateY(-6px) rotate(-45deg); }
 
-  .hero-grid, .section-head, .pod, .cta-inner { grid-template-columns: minmax(0, 1fr); }
-  .steps, .why-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero-grid, .section-head, .pod, .cta-inner, .apply-grid { grid-template-columns: minmax(0, 1fr); }
+  .steps, .steps.steps-4, .why-grid { grid-template-columns: minmax(0, 1fr); }
   .summary { position: static; }
   .pod-bar { display: flex; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
@@ -306,6 +345,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .stepper button { width: 3.25rem; }
   .stepper output { flex: 1; min-width: 5.5rem; }
   .quote { grid-template-columns: 1fr; gap: .5rem; }
+  .job-row { grid-template-columns: minmax(0, 1fr); padding: 1rem; }
+  .job-actions { grid-template-columns: auto 1fr; justify-items: start; align-items: center; gap: 1rem; }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero-actions .btn { flex: 1 1 100%; }
   .footer-grid { grid-template-columns: 1fr; gap: 1.75rem; }
   .days { gap: .3rem; }
   .day { font-size: .9rem; }
