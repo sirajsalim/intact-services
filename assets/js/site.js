@@ -1,0 +1,346 @@
+/* INTACT SERVICES prototype.
+   Everything here runs in the browser. Nothing is sent anywhere. */
+(() => {
+  'use strict';
+
+  /* ------------------------------------------------------------------
+     DUMMY DATA: edit these to change prices, roles and problems.
+     ------------------------------------------------------------------ */
+
+  // Monthly price for one person working FULL_TIME hours a week.
+  const FULL_TIME = 40;
+  const ROLES = {
+    coordinator: { name: 'HR Coordinator', level: 'L1 · Execute', does: 'Onboarding, records, leave and payroll inputs.', monthly: 1000 },
+    recruiter:   { name: 'HR Recruiter', level: 'L1 · Execute', does: 'Sourcing, screening and interview scheduling.', monthly: 1000 },
+    generalist:  { name: 'HR Generalist', level: 'L2 · Own', does: 'Day-to-day HR, policies, performance and employee relations.', monthly: 1800 },
+    partner:     { name: 'HR Business Partner', level: 'L3 · Advise', does: 'Manager coaching, workforce planning and talent.', monthly: 2600 },
+    senior:      { name: 'Senior HR Partner', level: 'L4 · Lead', does: 'HR strategy, org design and leading big changes.', monthly: 3400 },
+  };
+
+  // Commitment options in the Pod calculator.
+  const TERMS = [
+    { months: 1, label: 'Monthly', discount: 0 },
+    { months: 6, label: '6 months', discount: 0.10 },
+    { months: 12, label: '12 months', discount: 0.15 },
+  ];
+
+  // Hero problem finder. Each problem suggests one role and a starting number of hours.
+  const PROBLEMS = {
+    starting: [
+      { text: 'We need to hire, fast.', role: 'recruiter', hours: 20, does: 'Sourcing, screening and interview scheduling, so your team only meets the best candidates.' },
+      { text: "I'm doing HR myself after hours.", role: 'coordinator', hours: 10, does: 'Onboarding, records, leave and payroll inputs taken off your plate.' },
+      { text: 'We need contracts, policies and a handbook.', role: 'generalist', hours: 10, does: 'Contracts, policies and a handbook set up properly, then kept up to date.' },
+    ],
+    established: [
+      { text: 'Our HR team is stretched.', role: 'generalist', hours: 40, does: 'An experienced extra pair of hands for day-to-day HR operations.' },
+      { text: 'We need senior HR for a big change.', role: 'senior', hours: 20, does: 'Org design, restructuring and leadership coaching for as long as the change lasts.' },
+      { text: 'We need cover for a gap or a project.', role: 'partner', hours: 40, does: 'Cover a vacancy or leave, or run a project like a performance-review cycle.' },
+    ],
+  };
+  const FINDER_HOURS = [10, 20, 40];
+
+  // Pod calculator: hours change in steps of STEP, up to MAX per role.
+  const STEP = 10;
+  const MAX = 200;
+  const POD_DEFAULT = { generalist: 20 };
+
+  // Booking: dummy call slots on the next five weekdays, at these UTC hours.
+  const SLOT_HOURS_UTC = [14, 16, 19];
+
+  /* ------------------------------------------------------------------ */
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+  const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  const money = (n) => usd.format(Math.round(n));
+  const priceFor = (roleKey, hours) => ROLES[roleKey].monthly * hours / FULL_TIME;
+  const el = (tag, props = {}, children = []) => {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  };
+
+  /* ---------- Header: compact logo on scroll, mobile menu ---------- */
+  const header = $('#siteHeader');
+  const onScroll = () => header.classList.toggle('is-compact', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  const menuBtn = $('#menuBtn');
+  const nav = $('#nav');
+  const setMenu = (open) => {
+    nav.classList.toggle('open', open);
+    menuBtn.setAttribute('aria-expanded', String(open));
+    menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  };
+  menuBtn.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
+  $$('a', nav).forEach((a) => a.addEventListener('click', () => setMenu(false)));
+
+  /* ---------- Hero: problem finder ---------- */
+  const finder = { problem: null, hours: 0 };
+  const pickStep = $('[data-step="pick"]');
+  const resultStep = $('[data-step="result"]');
+
+  Object.entries(PROBLEMS).forEach(([group, list]) => {
+    const holder = $(`[data-group="${group}"]`);
+    list.forEach((p) => {
+      const btn = el('button', { type: 'button', className: 'problem', textContent: p.text });
+      btn.addEventListener('click', () => showResult(p));
+      holder.append(btn);
+    });
+  });
+
+  const hoursSeg = $('#rHours');
+  FINDER_HOURS.forEach((h) => {
+    const b = el('button', { type: 'button', textContent: `${h} hrs` });
+    b.dataset.hours = h;
+    b.addEventListener('click', () => { finder.hours = h; renderResult(); });
+    hoursSeg.append(b);
+  });
+
+  const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // On small screens the card changes height, so bring its top back into view.
+  function alignFinder() {
+    const top = $('#finder').getBoundingClientRect().top;
+    const headerBottom = header.getBoundingClientRect().bottom;
+    if (top < headerBottom) window.scrollBy({ top: top - headerBottom - 12, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  }
+
+  function showResult(problem) {
+    finder.problem = problem;
+    finder.hours = problem.hours;
+    renderResult();
+    pickStep.hidden = true;
+    resultStep.hidden = false;
+    $('#rRole').focus({ preventScroll: true });
+    alignFinder();
+  }
+
+  function renderResult() {
+    const { problem, hours } = finder;
+    const role = ROLES[problem.role];
+    $('#rQuote').textContent = `“${problem.text}”`;
+    $('#rRole').textContent = role.name;
+    $('#rLevel').textContent = role.level;
+    $('#rDoes').textContent = problem.does;
+    $('#rPrice').textContent = money(priceFor(problem.role, hours));
+    $$('button', hoursSeg).forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.hours) === hours)));
+  }
+
+  $('#finderBack').addEventListener('click', () => {
+    resultStep.hidden = true;
+    pickStep.hidden = false;
+    $('.problem', pickStep).focus({ preventScroll: true });
+    alignFinder();
+  });
+
+  $('#toPod').addEventListener('click', () => {
+    Object.keys(pod.hours).forEach((k) => { pod.hours[k] = 0; });
+    pod.hours[finder.problem.role] = finder.hours;
+    renderPod();
+    $('#pricing').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth' });
+  });
+
+  /* ---------- Pod calculator ---------- */
+  const pod = { hours: {}, term: TERMS[0] };
+  const resetPod = () => {
+    Object.keys(ROLES).forEach((k) => { pod.hours[k] = POD_DEFAULT[k] || 0; });
+    pod.term = TERMS[0];
+  };
+  resetPod();
+
+  const fteLabel = (h) => {
+    if (h === 0) return 'not needed';
+    const fte = h / FULL_TIME;
+    if (fte < 1) return h === FULL_TIME / 2 ? 'half-time' : 'part-time';
+    if (Number.isInteger(fte)) return fte === 1 ? 'full-time' : `${fte} full-time`;
+    return `≈ ${fte.toFixed(1)} full-time`;
+  };
+
+  const rows = $('#podRows');
+  const rowRefs = {};
+  Object.entries(ROLES).forEach(([key, role]) => {
+    const minus = el('button', { type: 'button', textContent: '−', ariaLabel: `Fewer hours of ${role.name}` });
+    const plus = el('button', { type: 'button', textContent: '+', ariaLabel: `More hours of ${role.name}` });
+    const out = el('output', { ariaLive: 'polite' });
+    const sub = el('div', { className: 'pod-sub' });
+    minus.addEventListener('click', () => { pod.hours[key] = Math.max(0, pod.hours[key] - STEP); renderPod(); });
+    plus.addEventListener('click', () => { pod.hours[key] = Math.min(MAX, pod.hours[key] + STEP); renderPod(); });
+    const row = el('div', { className: 'pod-row' }, [
+      el('div', { className: 'pod-info' }, [
+        el('span', { className: 'level', textContent: role.level }),
+        el('h3', { textContent: role.name }),
+        el('p', { textContent: role.does }),
+        el('p', { className: 'pod-rate', textContent: `${money(role.monthly)}/mo full-time` }),
+      ]),
+      el('div', { className: 'stepper' }, [minus, out, plus]),
+      sub,
+    ]);
+    rowRefs[key] = { row, minus, plus, out, sub };
+    rows.append(row);
+  });
+
+  const termSeg = $('#term');
+  TERMS.forEach((t) => {
+    const b = el('button', { type: 'button' }, [t.label]);
+    if (t.discount) b.append(el('small', { textContent: `save ${Math.round(t.discount * 100)}%` }));
+    b.addEventListener('click', () => { pod.term = t; renderPod(); });
+    t.button = b;
+    termSeg.append(b);
+  });
+
+  function podTotals() {
+    const lines = Object.keys(ROLES)
+      .filter((k) => pod.hours[k] > 0)
+      .map((k) => ({ key: k, hours: pod.hours[k], price: priceFor(k, pod.hours[k]) }));
+    // Round the monthly figure first so "per month × months" always matches the total shown.
+    const base = Math.round(lines.reduce((s, l) => s + l.price, 0));
+    const monthly = Math.round(base * (1 - pod.term.discount));
+    return { lines, base, monthly, total: monthly * pod.term.months, saved: (base - monthly) * pod.term.months };
+  }
+
+  function renderPod() {
+    Object.entries(rowRefs).forEach(([key, r]) => {
+      const h = pod.hours[key];
+      r.out.replaceChildren(document.createTextNode(`${h} hrs`), el('small', { textContent: fteLabel(h) }));
+      r.minus.disabled = h === 0;
+      r.plus.disabled = h >= MAX;
+      r.row.classList.toggle('is-on', h > 0);
+      r.sub.replaceChildren(document.createTextNode(money(priceFor(key, h))), el('small', { textContent: 'per month' }));
+    });
+
+    const t = podTotals();
+    const list = $('#sumLines');
+    list.replaceChildren(...(t.lines.length
+      ? t.lines.map((l) => el('li', {}, [
+          el('span', { textContent: `${ROLES[l.key].name} · ${l.hours} hrs` }),
+          el('span', { textContent: money(l.price) }),
+        ]))
+      : [el('li', { className: 'empty', textContent: 'Add hours to any role to build your Pod.' })]));
+
+    TERMS.forEach((term) => term.button.setAttribute('aria-pressed', String(term === pod.term)));
+    $('#sumMonthly').textContent = money(t.monthly);
+    $('#barTotal').textContent = money(t.monthly);
+    $('#sumNote').textContent = !t.lines.length ? ''
+      : pod.term.months === 1 ? 'Billed monthly.'
+      : `${money(t.total)} over ${pod.term.months} months. You save ${money(t.saved)}.`;
+    $('[data-book="pod"]').disabled = !t.lines.length;
+  }
+
+  $('#podReset').addEventListener('click', () => { resetPod(); renderPod(); });
+  renderPod();
+
+  // Mobile: show a running total while the rows are on screen and the summary isn't.
+  const bar = $('#podBar');
+  if ('IntersectionObserver' in window) {
+    const seen = { rows: false, summary: false };
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { seen[e.target === rows ? 'rows' : 'summary'] = e.isIntersecting; });
+      bar.classList.toggle('show', seen.rows && !seen.summary);
+    }, { threshold: 0 });
+    io.observe(rows);
+    io.observe($('#podSummary'));
+  }
+
+  /* ---------- Booking dialog ---------- */
+  const dialog = $('#booking');
+  const steps = { time: $('[data-bstep="time"]'), details: $('[data-bstep="details"]'), done: $('[data-bstep="done"]') };
+  const form = $('#bookForm');
+  const booking = { context: '', slot: null, dayIndex: 0 };
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
+  const fmtTime = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+  const fmtDay = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+  const fmtDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
+  const fmtLong = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+
+  function nextWeekdays(count) {
+    const days = [];
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    while (days.length < count) {
+      d.setUTCDate(d.getUTCDate() + 1);
+      const wd = d.getUTCDay();
+      if (wd !== 0 && wd !== 6) days.push(new Date(d));
+    }
+    return days;
+  }
+
+  function contextFor(source) {
+    if (source === 'finder' && finder.problem) {
+      const role = ROLES[finder.problem.role];
+      return `About: “${finder.problem.text}” → ${role.name}, ${finder.hours} hrs a week (${money(priceFor(finder.problem.role, finder.hours))}/mo)`;
+    }
+    if (source === 'pod') {
+      const t = podTotals();
+      const mix = t.lines.map((l) => `${ROLES[l.key].name} ${l.hours} hrs`).join(', ');
+      return `About your Pod: ${mix}. ${money(t.monthly)}/mo, ${pod.term.label.toLowerCase()}.`;
+    }
+    return '';
+  }
+
+  function showStep(name) {
+    Object.entries(steps).forEach(([k, node]) => { node.hidden = k !== name; });
+  }
+
+  function renderDays() {
+    const days = nextWeekdays(5);
+    const dayBox = $('#days');
+    dayBox.replaceChildren(...days.map((d, i) => {
+      const b = el('button', { type: 'button', className: 'day' }, [fmtDay.format(d), el('small', { textContent: fmtDate.format(d) })]);
+      b.setAttribute('aria-pressed', String(i === booking.dayIndex));
+      b.addEventListener('click', () => { booking.dayIndex = i; renderDays(); });
+      return b;
+    }));
+    const day = days[booking.dayIndex];
+    $('#slots').replaceChildren(...SLOT_HOURS_UTC.map((h) => {
+      const when = new Date(day);
+      when.setUTCHours(h, 0, 0, 0);
+      const b = el('button', { type: 'button', className: 'slot', textContent: fmtTime.format(when) });
+      b.addEventListener('click', () => pickSlot(when));
+      return b;
+    }));
+  }
+
+  function pickSlot(when) {
+    booking.slot = when;
+    $('#picked').textContent = `${fmtLong.format(when)}, ${fmtTime.format(when)}`;
+    showStep('details');
+    form.elements.name.focus();
+  }
+
+  function openBooking(source) {
+    booking.context = contextFor(source);
+    booking.slot = null;
+    booking.dayIndex = 0;
+    const ctx = $('#bookContext');
+    ctx.textContent = booking.context;
+    ctx.hidden = !booking.context;
+    $('#bookTitle').textContent = '20 minutes. No HR brief needed.';
+    $('#tz').textContent = tz.replace(/_/g, ' ');
+    form.reset();
+    renderDays();
+    showStep('time');
+    setMenu(false);
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  }
+
+  const closeBooking = () => (typeof dialog.close === 'function' ? dialog.close() : dialog.removeAttribute('open'));
+
+  $$('[data-book]').forEach((b) => b.addEventListener('click', () => openBooking(b.dataset.book)));
+  $$('[data-close]', dialog).forEach((b) => b.addEventListener('click', closeBooking));
+  dialog.addEventListener('click', (e) => { if (e.target === dialog) closeBooking(); });
+  $('#changeTime').addEventListener('click', () => showStep('time'));
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!form.reportValidity()) return;
+    const name = form.elements.name.value.trim().split(/\s+/)[0];
+    const email = form.elements.email.value.trim();
+    $('#bookTitle').textContent = "You're booked.";
+    $('#doneText').textContent = `Thanks ${name}. Your call is on ${fmtLong.format(booking.slot)} at ${fmtTime.format(booking.slot)}. The invite would go to ${email}.`;
+    showStep('done');
+    $('#bookTitle').focus();
+  });
+})();
