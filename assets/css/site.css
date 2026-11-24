@@ -111,11 +111,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hero h1 { margin: 1.1rem 0 1.4rem; font-size: clamp(2.6rem, 1.5rem + 3.6vw, 4.4rem); line-height: .98; letter-spacing: -.045em; text-wrap: balance; }
 .hl { color: var(--o); }
 .lead { max-width: 36rem; font-size: clamp(1.05rem, .95rem + .4vw, 1.1875rem); line-height: 1.75; }
-.hero-tags { display: flex; flex-wrap: wrap; gap: .6rem; margin: 2rem 0 0; padding: 0; list-style: none; }
-.hero-tags li { display: inline-flex; align-items: center; gap: .45rem; border: 2px solid var(--w-25); padding: .45rem .75rem; font-family: var(--ff-h); font-weight: 800; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; }
+/* Trust line under the hero copy. Plain text, no boxes, so nothing here looks like a button or a selected option. */
+.guarantee.guarantee-hero { margin: 2rem 0 0; font-size: .95rem; }
+.guarantee.guarantee-hero svg { width: 28px; height: 28px; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: .35rem 1.5rem; margin: .7rem 0 0; padding: 0 0 0 calc(28px + .55rem); list-style: none; }
+.hero-tags li { display: inline-flex; align-items: center; gap: .45rem; font-family: var(--ff-h); font-weight: 800; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--w-75); }
 .hero-tags li::before { content: "✓"; color: var(--o); }
-.hero-tags li.is-key { background: var(--o); border-color: var(--o); }
-.hero-tags li.is-key::before { color: var(--w); }
 
 /* In-house comparison under each price: the reason this isn't "just hire someone". */
 .compare { margin: -.5rem 0 .9rem; padding-left: .7rem; border-left: 3px solid var(--o); font-size: .88rem; line-height: 1.45; color: var(--k-80); }
@@ -296,9 +297,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (max-width: 560px) {
   :root { --pop: 8px; }
   .header-inner .btn-sm { padding: .6rem .8rem; font-size: .78rem; }
-  .hero-tags { margin-top: 1.25rem; gap: .3rem 1rem; }
-  .hero-tags li { padding: 0; border: 0; font-size: .66rem; }
-  .hero-tags li.is-key { padding: .3rem .55rem; }
+  .guarantee.guarantee-hero { margin-top: 1.5rem; font-size: .85rem; }
+  .hero-tags { gap: .3rem 1rem; }
+  .hero-tags li { font-size: .66rem; }
   .panel, .summary, .step-ink { margin-right: var(--pop); }
   .pod-row { grid-template-columns: minmax(0, 1fr) auto; gap: .9rem 1rem; padding: 1rem; }
   .pod-info { grid-column: 1 / -1; }
