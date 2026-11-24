@@ -8,19 +8,29 @@
      ------------------------------------------------------------------ */
 
   // Hours and prices are both per MONTH. Full-time = 160 hrs a month (40 hrs a week × 4 weeks).
-  // `monthly` below is the price of one full-time person; fewer hours are charged pro rata.
+  // `monthly` below is the price of one full-time person; part-time blocks follow PART_TIME_CURVE.
   const FULL_TIME = 160;
   const WEEKS_PER_MONTH = 4;
+  // tagline + tasks: what the role does, in a few words (shown in bold and as tags in the calculator).
   // monthly: example price for one full-time person (see PRICING.md for the research behind it).
   // inHouse: what a U.S. company pays to employ the same role full-time, fully loaded
   //          (median salary ÷ 0.70 wage share, BLS ECEC). Sources in PRICING.md.
   const ROLES = {
-    coordinator: { name: 'HR Coordinator', level: 'L1 · Execute', does: 'Onboarding, records, leave and payroll inputs.', monthly: 2400, inHouse: 6000 },
-    recruiter:   { name: 'HR Recruiter', level: 'L1 · Execute', does: 'Sourcing, screening and interview scheduling.', monthly: 2400, inHouse: 9000 },
-    generalist:  { name: 'HR Generalist', level: 'L2 · Own', does: 'Day-to-day HR, policies, performance and employee relations.', monthly: 3600, inHouse: 8900 },
-    partner:     { name: 'HR Business Partner', level: 'L3 · Advise', does: 'Manager coaching, workforce planning and talent.', monthly: 5200, inHouse: 12500 },
-    senior:      { name: 'Senior HR Partner', level: 'L4 · Lead', does: 'HR strategy, org design and leading big changes.', monthly: 7200, inHouse: 16500 },
+    coordinator: { name: 'HR Coordinator', level: 'L1 · Execute', tagline: 'Keeps HR admin running', tasks: ['Onboarding', 'Records', 'Payroll inputs'], monthly: 2400, inHouse: 6000 },
+    recruiter:   { name: 'HR Recruiter', level: 'L1 · Execute', tagline: 'Finds and screens candidates', tasks: ['Sourcing', 'Screening', 'Interviews'], monthly: 2400, inHouse: 9000 },
+    generalist:  { name: 'HR Generalist', level: 'L2 · Own', tagline: 'Runs day-to-day HR', tasks: ['Policies', 'Performance', 'Employee issues'], monthly: 3600, inHouse: 8900 },
+    partner:     { name: 'HR Business Partner', level: 'L3 · Advise', tagline: 'Coaches your managers', tasks: ['Workforce planning', 'Talent', 'Manager advice'], monthly: 5200, inHouse: 12500 },
+    senior:      { name: 'Senior HR Partner', level: 'L4 · Lead', tagline: 'Leads HR strategy and big changes', tasks: ['Org design', 'Restructuring', 'Leadership'], monthly: 7200, inHouse: 16500 },
   };
+
+  // The ladder: each level can do everything the level below does, plus more.
+  // L1 has two specialists side by side; neither covers the other's work.
+  const LEVELS = [
+    { tag: 'L1 · Execute', note: 'Two specialists. Pick either or both.', roles: ['coordinator', 'recruiter'] },
+    { tag: 'L2 · Own', below: 'L1', adds: 'owns day-to-day HR', roles: ['generalist'] },
+    { tag: 'L3 · Advise', below: 'L2', adds: 'advises your managers', roles: ['partner'] },
+    { tag: 'L4 · Lead', below: 'L3', adds: 'leads HR strategy', roles: ['senior'] },
+  ];
 
   // Part-time blocks cost more per hour than full-time, like every fractional HR firm prices them.
   // Price for h hours = full-time price × (h ÷ 160) ^ PART_TIME_CURVE. 1 = straight pro rata; lower = steeper premium.
@@ -55,7 +65,7 @@
   // Pod calculator: hours a month change in steps of STEP, up to MAX per role.
   const STEP = 20;
   const MAX = 800;
-  const POD_DEFAULT = { generalist: 80 };
+  const POD_DEFAULT = { coordinator: 80 };
 
   // Booking: dummy call slots on the next five weekdays, at these UTC hours.
   const SLOT_HOURS_UTC = [14, 16, 19];
@@ -185,7 +195,9 @@
 
   const rows = $('#podRows');
   const rowRefs = {};
-  Object.entries(ROLES).forEach(([key, role]) => {
+
+  function buildRow(key) {
+    const role = ROLES[key];
     const minus = el('button', { type: 'button', textContent: '−', ariaLabel: `Fewer hours of ${role.name}` });
     const plus = el('button', { type: 'button', textContent: '+', ariaLabel: `More hours of ${role.name}` });
     const out = el('output', { ariaLive: 'polite' });
@@ -194,16 +206,27 @@
     plus.addEventListener('click', () => { pod.hours[key] = Math.min(MAX, pod.hours[key] + STEP); renderPod(); });
     const row = el('div', { className: 'pod-row' }, [
       el('div', { className: 'pod-info' }, [
-        el('span', { className: 'level', textContent: role.level }),
         el('h3', { textContent: role.name }),
-        el('p', { textContent: role.does }),
+        el('p', { className: 'pod-tagline', textContent: role.tagline }),
+        el('ul', { className: 'pod-tasks', ariaLabel: `${role.name} handles` }, role.tasks.map((t) => el('li', { textContent: t }))),
         el('p', { className: 'pod-rate', textContent: `${money(role.monthly)}/mo full-time · in-house ≈ ${money(role.inHouse)}` }),
       ]),
       el('div', { className: 'stepper' }, [minus, out, plus]),
       sub,
     ]);
     rowRefs[key] = { row, minus, plus, out, sub };
-    rows.append(row);
+    return row;
+  }
+
+  // One group per level, with a header saying what the level adds on top of the one below.
+  LEVELS.forEach((lvl) => {
+    const note = lvl.below
+      ? el('p', { className: 'tier-note' }, [el('span', { className: 'tier-plus', textContent: `Everything ${lvl.below} does, plus` }), ` ${lvl.adds}`])
+      : el('p', { className: 'tier-note', textContent: lvl.note });
+    rows.append(el('div', { className: 'tier', role: 'group', ariaLabel: lvl.tag }, [
+      el('div', { className: 'tier-head' }, [el('span', { className: 'level level-ink', textContent: lvl.tag }), note]),
+      ...lvl.roles.map(buildRow),
+    ]));
   });
 
   const termSeg = $('#term');

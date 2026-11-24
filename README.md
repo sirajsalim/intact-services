@@ -24,6 +24,8 @@ Everything lives at the top of [`assets/js/site.js`](assets/js/site.js):
 | What | Constant |
 |---|---|
 | Monthly price per role for one full-time person (160 hrs a month) | `ROLES[…].monthly`, `FULL_TIME` |
+| What each role does (bold line and tags) | `ROLES[…].tagline`, `ROLES[…].tasks` |
+| Level groups and what each level adds | `LEVELS` |
 | In-house cost shown next to each price | `ROLES[…].inHouse`, `HIRE_COST` |
 | How much more part-time blocks cost per hour | `PART_TIME_CURVE` |
 | Commitment discounts | `TERMS` |
