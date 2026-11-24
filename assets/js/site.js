@@ -93,18 +93,18 @@
     return node;
   };
 
-  // Savings line under a price: "Save ≈ $X a month (Y% less)" and what it's compared with.
+  // "≈ $6,000" with a non-breaking space, so the ≈ never ends up alone at the end of a line.
+  const approx = (n) => `≈ ${money(n)}`;
+
+  // Savings under a price: "Save ≈ $X a month", then "Y% less than <what it's compared with>".
   function renderSavings(node, ours, inHouse, against) {
     const save = inHouse - ours;
     if (!node) return;
     if (!ours || save <= 0) { node.replaceChildren(); return; }
     const pct = Math.round((save / inHouse) * 100);
     node.replaceChildren(
-      el('p', { className: 'savings-main' }, [
-        el('b', { textContent: `Save ≈ ${money(save)} a month` }),
-        el('span', { className: 'savings-pct', textContent: `(${pct}% less)` }),
-      ]),
-      el('p', { className: 'savings-note', textContent: against }),
+      el('p', { className: 'savings-main', textContent: `Save ${approx(save)} a month` }),
+      el('p', { className: 'savings-note' }, [el('b', { textContent: `${pct}% less` }), ` than ${against}`]),
     );
   }
 
@@ -178,7 +178,7 @@
     $('#rPrice').textContent = money(priceFor(problem.role, hours));
     const inHouse = inHouseFor(problem.role, hours);
     renderSavings($('#rSavings'), priceFor(problem.role, hours), inHouse,
-      `vs hiring a full-time ${role.name} in-house (≈ ${money(inHouse)}/mo with benefits), before the ≈ ${money(HIRE_COST)} it costs to recruit one.`);
+      `hiring a full-time ${role.name} in-house (${approx(inHouse)}/mo with benefits), before the ${approx(HIRE_COST)} it costs to recruit one.`);
     $$('button', hoursSeg).forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.hours) === hours)));
   }
 
@@ -296,7 +296,7 @@
       : `${money(t.total)} over ${pod.term.months} months, including ${money(t.saved)} off for committing.`;
     const who = t.lines.length === 1 ? `a full-time ${ROLES[t.lines[0].key].name}` : `these ${t.lines.length} roles`;
     renderSavings($('#sumSavings'), t.monthly, t.inHouse,
-      `vs hiring ${who} in-house (≈ ${money(t.inHouse)}/mo with benefits), before recruiting costs.`);
+      `hiring ${who} in-house (${approx(t.inHouse)}/mo with benefits), before recruiting costs.`);
     $('[data-book="pod"]').disabled = !t.lines.length;
   }
 
