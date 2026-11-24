@@ -7,8 +7,10 @@
      DUMMY DATA: edit these to change prices, roles and problems.
      ------------------------------------------------------------------ */
 
-  // Monthly price for one person working FULL_TIME hours a week.
-  const FULL_TIME = 40;
+  // Hours and prices are both per MONTH. Full-time = 160 hrs a month (40 hrs a week × 4 weeks).
+  // `monthly` below is the price of one full-time person; fewer hours are charged pro rata.
+  const FULL_TIME = 160;
+  const WEEKS_PER_MONTH = 4;
   const ROLES = {
     coordinator: { name: 'HR Coordinator', level: 'L1 · Execute', does: 'Onboarding, records, leave and payroll inputs.', monthly: 1000 },
     recruiter:   { name: 'HR Recruiter', level: 'L1 · Execute', does: 'Sourcing, screening and interview scheduling.', monthly: 1000 },
@@ -24,25 +26,25 @@
     { months: 12, label: '12 months', discount: 0.15 },
   ];
 
-  // Hero problem finder. Each problem suggests one role and a starting number of hours.
+  // Hero problem finder. Each problem suggests one role and a starting number of hours a month.
   const PROBLEMS = {
     starting: [
-      { text: 'We need to hire, fast.', role: 'recruiter', hours: 20, does: 'Sourcing, screening and interview scheduling, so your team only meets the best candidates.' },
-      { text: "I'm doing HR myself after hours.", role: 'coordinator', hours: 10, does: 'Onboarding, records, leave and payroll inputs taken off your plate.' },
-      { text: 'We need contracts, policies and a handbook.', role: 'generalist', hours: 10, does: 'Contracts, policies and a handbook set up properly, then kept up to date.' },
+      { text: 'We need to hire, fast.', role: 'recruiter', hours: 80, does: 'Sourcing, screening and interview scheduling, so your team only meets the best candidates.' },
+      { text: "I'm doing HR myself after hours.", role: 'coordinator', hours: 40, does: 'Onboarding, records, leave and payroll inputs taken off your plate.' },
+      { text: 'We need contracts, policies and a handbook.', role: 'generalist', hours: 40, does: 'Contracts, policies and a handbook set up properly, then kept up to date.' },
     ],
     established: [
-      { text: 'Our HR team is stretched.', role: 'generalist', hours: 40, does: 'An experienced extra pair of hands for day-to-day HR operations.' },
-      { text: 'We need senior HR for a big change.', role: 'senior', hours: 20, does: 'Org design, restructuring and leadership coaching for as long as the change lasts.' },
-      { text: 'We need cover for a gap or a project.', role: 'partner', hours: 40, does: 'Cover a vacancy or leave, or run a project like a performance-review cycle.' },
+      { text: 'Our HR team is stretched.', role: 'generalist', hours: 160, does: 'An experienced extra pair of hands for day-to-day HR operations.' },
+      { text: 'We need senior HR for a big change.', role: 'senior', hours: 80, does: 'Org design, restructuring and leadership coaching for as long as the change lasts.' },
+      { text: 'We need cover for a gap or a project.', role: 'partner', hours: 160, does: 'Cover a vacancy or leave, or run a project like a performance-review cycle.' },
     ],
   };
-  const FINDER_HOURS = [10, 20, 40];
+  const FINDER_HOURS = [40, 80, 160]; // hours a month
 
-  // Pod calculator: hours change in steps of STEP, up to MAX per role.
-  const STEP = 10;
-  const MAX = 200;
-  const POD_DEFAULT = { generalist: 20 };
+  // Pod calculator: hours a month change in steps of STEP, up to MAX per role.
+  const STEP = 20;
+  const MAX = 800;
+  const POD_DEFAULT = { generalist: 80 };
 
   // Booking: dummy call slots on the next five weekdays, at these UTC hours.
   const SLOT_HOURS_UTC = [14, 16, 19];
@@ -92,7 +94,7 @@
 
   const hoursSeg = $('#rHours');
   FINDER_HOURS.forEach((h) => {
-    const b = el('button', { type: 'button', textContent: `${h} hrs` });
+    const b = el('button', { type: 'button' }, [`${h} hrs`, el('small', { textContent: `≈ ${h / WEEKS_PER_MONTH} a week` })]);
     b.dataset.hours = h;
     b.addEventListener('click', () => { finder.hours = h; renderResult(); });
     hoursSeg.append(b);
@@ -150,12 +152,13 @@
   };
   resetPod();
 
+  // Hint under each stepper: the weekly equivalent, or "full-time" on exact multiples.
   const fteLabel = (h) => {
     if (h === 0) return 'not needed';
     const fte = h / FULL_TIME;
-    if (fte < 1) return h === FULL_TIME / 2 ? 'half-time' : 'part-time';
     if (Number.isInteger(fte)) return fte === 1 ? 'full-time' : `${fte} full-time`;
-    return `≈ ${fte.toFixed(1)} full-time`;
+    if (fte > 1) return `≈ ${fte.toFixed(1)} full-time`;
+    return `≈ ${h / WEEKS_PER_MONTH} hrs a week`;
   };
 
   const rows = $('#podRows');
@@ -172,7 +175,7 @@
         el('span', { className: 'level', textContent: role.level }),
         el('h3', { textContent: role.name }),
         el('p', { textContent: role.does }),
-        el('p', { className: 'pod-rate', textContent: `${money(role.monthly)}/mo full-time` }),
+        el('p', { className: 'pod-rate', textContent: `${money(role.monthly)}/mo full-time (${FULL_TIME} hrs)` }),
       ]),
       el('div', { className: 'stepper' }, [minus, out, plus]),
       sub,
@@ -203,7 +206,7 @@
   function renderPod() {
     Object.entries(rowRefs).forEach(([key, r]) => {
       const h = pod.hours[key];
-      r.out.replaceChildren(document.createTextNode(`${h} hrs`), el('small', { textContent: fteLabel(h) }));
+      r.out.replaceChildren(document.createTextNode(`${h} hrs/mo`), el('small', { textContent: fteLabel(h) }));
       r.minus.disabled = h === 0;
       r.plus.disabled = h >= MAX;
       r.row.classList.toggle('is-on', h > 0);
@@ -214,7 +217,7 @@
     const list = $('#sumLines');
     list.replaceChildren(...(t.lines.length
       ? t.lines.map((l) => el('li', {}, [
-          el('span', { textContent: `${ROLES[l.key].name} · ${l.hours} hrs` }),
+          el('span', { textContent: `${ROLES[l.key].name} · ${l.hours} hrs/mo` }),
           el('span', { textContent: money(l.price) }),
         ]))
       : [el('li', { className: 'empty', textContent: 'Add hours to any role to build your Pod.' })]));
@@ -269,11 +272,11 @@
   function contextFor(source) {
     if (source === 'finder' && finder.problem) {
       const role = ROLES[finder.problem.role];
-      return `About: “${finder.problem.text}” → ${role.name}, ${finder.hours} hrs a week (${money(priceFor(finder.problem.role, finder.hours))}/mo)`;
+      return `About: “${finder.problem.text}” → ${role.name}, ${finder.hours} hrs a month (${money(priceFor(finder.problem.role, finder.hours))}/mo)`;
     }
     if (source === 'pod') {
       const t = podTotals();
-      const mix = t.lines.map((l) => `${ROLES[l.key].name} ${l.hours} hrs`).join(', ');
+      const mix = t.lines.map((l) => `${ROLES[l.key].name} ${l.hours} hrs/mo`).join(', ');
       return `About your Pod: ${mix}. ${money(t.monthly)}/mo, ${pod.term.label.toLowerCase()}.`;
     }
     return '';
