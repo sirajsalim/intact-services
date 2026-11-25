@@ -7,6 +7,7 @@ A one-page prototype of a simpler [intact-services.com](https://intact-services.
 ## What's on the page
 
 1. **Hero with a problem picker.** The headline is "Add HR capability, not HR headcount." Visitors pick a problem from one of two lists, "Just starting out" or "Already have HR". They then see the suggested role, can switch between 40, 80 or 160 hours a month, see the monthly price with the 30-day money-back guarantee, and get a **Book a call** button.
+   - **Currency picker** ($ USD, £ GBP, AED), next to the price here and on the calculator total; the two stay in sync. It also chooses which country's in-house costs the savings are compared with: the U.S., England or Dubai. The default comes from the visitor's time zone, and their choice is remembered.
 2. **How it works.** Three steps; the third is the 30-day money-back guarantee.
 3. **Pricing: Pod calculator.** One +/− control per role, from L1 to L4, counted in hours a month (steps of 20; full-time = 160), with a running total. You can pick monthly, 6-month (10% off) or 12-month (15% off) billing. On phones a bar at the bottom shows the total.
 4. **Why INTACT.** Three short points, plus a placeholder for a real client quote.
@@ -26,7 +27,7 @@ Everything lives at the top of [`assets/js/site.js`](assets/js/site.js):
 | Monthly price per role for one full-time person (160 hrs a month) | `ROLES[…].monthly`, `FULL_TIME` |
 | What each role does (bold line and tags) | `ROLES[…].tagline`, `ROLES[…].tasks` |
 | Level groups and what each level adds | `LEVELS` |
-| In-house cost shown next to each price | `ROLES[…].inHouse`, `HIRE_COST` |
+| Currencies, exchange rates, in-house costs per country, recruiting cost | `MARKETS` |
 | How much more part-time blocks cost per hour | `PART_TIME_CURVE` |
 | Commitment discounts | `TERMS` |
 | Hero problems, the role each one suggests, and its starting hours | `PROBLEMS` |

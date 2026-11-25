@@ -12,15 +12,31 @@
   const FULL_TIME = 160;
   const WEEKS_PER_MONTH = 4;
   // tagline + tasks: what the role does, in a few words (shown in bold and as tags in the calculator).
-  // monthly: example price for one full-time person (see PRICING.md for the research behind it).
-  // inHouse: what a U.S. company pays to employ the same role full-time, fully loaded
-  //          (median salary ÷ 0.70 wage share, BLS ECEC). Sources in PRICING.md.
+  // monthly: example price in US$ for one full-time person (see PRICING.md for the research behind it).
+  //          Other currencies are converted from this with MARKETS[…].perUsd.
   const ROLES = {
-    coordinator: { name: 'HR Coordinator', level: 'L1 · Execute', tagline: 'Keeps HR admin running', tasks: ['Onboarding', 'Records', 'Payroll inputs'], monthly: 2400, inHouse: 6000 },
-    recruiter:   { name: 'HR Recruiter', level: 'L1 · Execute', tagline: 'Finds and screens candidates', tasks: ['Sourcing', 'Screening', 'Interviews'], monthly: 2400, inHouse: 9000 },
-    generalist:  { name: 'HR Generalist', level: 'L2 · Own', tagline: 'Runs day-to-day HR', tasks: ['Policies', 'Performance', 'Employee issues'], monthly: 3600, inHouse: 8900 },
-    partner:     { name: 'HR Business Partner', level: 'L3 · Advise', tagline: 'Coaches your managers', tasks: ['Workforce planning', 'Talent', 'Manager advice'], monthly: 5200, inHouse: 12500 },
-    senior:      { name: 'Senior HR Partner', level: 'L4 · Lead', tagline: 'Leads HR strategy and big changes', tasks: ['Org design', 'Restructuring', 'Leadership'], monthly: 7200, inHouse: 16500 },
+    coordinator: { name: 'HR Coordinator', level: 'L1 · Execute', tagline: 'Keeps HR admin running', tasks: ['Onboarding', 'Records', 'Payroll inputs'], monthly: 2400 },
+    recruiter:   { name: 'HR Recruiter', level: 'L1 · Execute', tagline: 'Finds and screens candidates', tasks: ['Sourcing', 'Screening', 'Interviews'], monthly: 2400 },
+    generalist:  { name: 'HR Generalist', level: 'L2 · Own', tagline: 'Runs day-to-day HR', tasks: ['Policies', 'Performance', 'Employee issues'], monthly: 3600 },
+    partner:     { name: 'HR Business Partner', level: 'L3 · Advise', tagline: 'Coaches your managers', tasks: ['Workforce planning', 'Talent', 'Manager advice'], monthly: 5200 },
+    senior:      { name: 'Senior HR Partner', level: 'L4 · Lead', tagline: 'Leads HR strategy and big changes', tasks: ['Org design', 'Restructuring', 'Leadership'], monthly: 7200 },
+  };
+
+  // Markets. The currency picker sets both the currency prices are shown in and the country
+  // whose in-house costs we compare against.
+  //   perUsd:      units of this currency per US$1 (example rates; GBP ≈ Nov 2026, AED is pegged).
+  //   inHouseYear: full yearly cost to employ the role in-house there (salary + employer costs),
+  //                from the owner's salary table (see PRICING.md).
+  //   hireCost:    average cost to recruit one hire, only where we have a source (SHRM, U.S.).
+  //   zones:       time zones that pick this currency by default.
+  const MARKETS = {
+    USD: { code: 'USD', label: '$ USD', place: 'the U.S.', perUsd: 1, hireCost: 5500, zones: [],
+           inHouseYear: { coordinator: 82351, recruiter: 113031, generalist: 106267, partner: 141606, senior: 243304 } },
+    GBP: { code: 'GBP', label: '£ GBP', place: 'England', perUsd: 0.75, hireCost: null,
+           zones: ['Europe/London', 'Europe/Belfast', 'Europe/Guernsey', 'Europe/Isle_of_Man', 'Europe/Jersey'],
+           inHouseYear: { coordinator: 35643, recruiter: 46263, generalist: 63533, partner: 62383, senior: 81071 } },
+    AED: { code: 'AED', label: 'AED', place: 'Dubai', perUsd: 3.6725, hireCost: null, zones: ['Asia/Dubai'],
+           inHouseYear: { coordinator: 211860, recruiter: 224700, generalist: 276060, partner: 481500, senior: 834600 } },
   };
 
   // The ladder: each level can do everything the level below does, plus more.
@@ -36,9 +52,6 @@
   // Price for h hours = full-time price × (h ÷ 160) ^ PART_TIME_CURVE. 1 = straight pro rata; lower = steeper premium.
   // With 0.75: 20 hrs ≈ 1.7× the full-time hourly rate, 80 hrs ≈ 1.2×, 160 hrs = 1×.
   const PART_TIME_CURVE = 0.75;
-
-  // Average U.S. cost to recruit one non-executive hire (SHRM 2025).
-  const HIRE_COST = 5500;
 
   // Commitment options in the Pod calculator.
   const TERMS = [
@@ -74,19 +87,33 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-  const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-  const money = (n) => usd.format(Math.round(n));
-  // Whole full-time people at the full-time price; any remainder is a part-time block on the curve.
-  // Rounded to the nearest $10 so prices look like a price list, not a calculation.
+  // Currency: remembered choice, else guessed from the visitor's time zone, else US$.
+  const CURRENCY_KEY = 'intact-currency';
+  const guessCurrency = () => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    return Object.keys(MARKETS).find((c) => MARKETS[c].zones.includes(tz)) || 'USD';
+  };
+  let currency = (() => {
+    try { const saved = localStorage.getItem(CURRENCY_KEY); if (MARKETS[saved]) return saved; } catch (e) { /* storage blocked */ }
+    return guessCurrency();
+  })();
+  const market = () => MARKETS[currency];
+  const formatterFor = (code) => new Intl.NumberFormat('en-US', { style: 'currency', currency: code, maximumFractionDigits: 0 });
+  let fmt = formatterFor(currency);
+  const money = (n) => fmt.format(Math.round(n));
+
+  // Our price, in the chosen currency. Whole full-time people at the full-time price; any remainder
+  // is a part-time block on the curve. Rounded to the nearest 10 so it reads like a price list.
   const priceFor = (roleKey, hours) => {
     const { monthly } = ROLES[roleKey];
     const full = Math.floor(hours / FULL_TIME);
     const rest = hours - full * FULL_TIME;
     const partTime = rest ? monthly * (rest / FULL_TIME) ** PART_TIME_CURVE : 0;
-    return Math.round((monthly * full + partTime) / 10) * 10;
+    return Math.round(((monthly * full + partTime) * market().perUsd) / 10) * 10;
   };
-  // In-house alternative: at least one full-time hire per role; pro rata above that.
-  const inHouseFor = (roleKey, hours) => Math.round(ROLES[roleKey].inHouse * Math.max(1, hours / FULL_TIME) / 100) * 100;
+  // In-house alternative in the chosen market: at least one full-time hire per role; pro rata above that.
+  const inHouseFor = (roleKey, hours) =>
+    Math.round((market().inHouseYear[roleKey] / 12) * Math.max(1, hours / FULL_TIME) / 100) * 100;
   const el = (tag, props = {}, children = []) => {
     const node = Object.assign(document.createElement(tag), props);
     node.append(...children);
@@ -189,8 +216,10 @@
     $('#rDoes').textContent = problem.does;
     $('#rPrice').textContent = money(priceFor(problem.role, hours));
     const inHouse = inHouseFor(problem.role, hours);
+    const { place, hireCost } = market();
+    const recruit = hireCost ? `before the ${approx(hireCost)} it costs to recruit one.` : 'before recruiting costs.';
     renderSavings($('#rSavings'), priceFor(problem.role, hours), inHouse,
-      `hiring a full-time ${role.name} in-house (${approx(inHouse)}/mo with benefits), before the ${approx(HIRE_COST)} it costs to recruit one.`);
+      `hiring a full-time ${role.name} in-house in ${place} (${approx(inHouse)}/mo with employer costs), ${recruit}`);
     $$('button', hoursSeg).forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.hours) === hours)));
   }
 
@@ -234,6 +263,7 @@
     const plus = el('button', { type: 'button', textContent: '+', ariaLabel: `More hours of ${role.name}` });
     const out = el('output', { ariaLive: 'polite' });
     const sub = el('div', { className: 'pod-sub' });
+    const rate = el('p', { className: 'pod-rate' });
     minus.addEventListener('click', () => { pod.hours[key] = Math.max(0, pod.hours[key] - STEP); renderPod(); });
     plus.addEventListener('click', () => { pod.hours[key] = Math.min(MAX, pod.hours[key] + STEP); renderPod(); });
     const row = el('div', { className: 'pod-row' }, [
@@ -241,12 +271,12 @@
         el('h3', { textContent: role.name }),
         el('p', { className: 'pod-tagline', textContent: role.tagline }),
         el('ul', { className: 'pod-tasks', ariaLabel: `${role.name} handles` }, role.tasks.map((t) => el('li', { textContent: t }))),
-        el('p', { className: 'pod-rate', textContent: `${money(role.monthly)}/mo full-time · in-house ≈ ${money(role.inHouse)}` }),
+        rate,
       ]),
       el('div', { className: 'stepper' }, [minus, out, plus]),
       sub,
     ]);
-    rowRefs[key] = { row, minus, plus, out, sub };
+    rowRefs[key] = { row, minus, plus, out, sub, rate };
     return row;
   }
 
@@ -289,6 +319,7 @@
       r.plus.disabled = h >= MAX;
       r.row.classList.toggle('is-on', h > 0);
       r.sub.replaceChildren(document.createTextNode(money(priceFor(key, h))), el('small', { textContent: 'per month' }));
+      r.rate.textContent = `${money(priceFor(key, FULL_TIME))}/mo full-time · in-house ≈ ${money(inHouseFor(key, FULL_TIME))}`;
     });
 
     const t = podTotals();
@@ -308,11 +339,39 @@
       : `${money(t.total)} over ${pod.term.months} months, including ${money(t.saved)} off for committing.`;
     const who = t.lines.length === 1 ? `a full-time ${ROLES[t.lines[0].key].name}` : `these ${t.lines.length} roles`;
     renderSavings($('#sumSavings'), t.monthly, t.inHouse,
-      `hiring ${who} in-house (${approx(t.inHouse)}/mo with benefits), before recruiting costs.`);
+      `hiring ${who} in-house in ${market().place} (${approx(t.inHouse)}/mo with employer costs), before recruiting costs.`);
     $('[data-book="pod"]').disabled = !t.lines.length;
   }
 
   $('#podReset').addEventListener('click', () => { resetPod(); renderPod(); });
+
+  /* ---------- Currency picker (next to each price; all pickers stay in sync) ---------- */
+  const pickers = $$('[data-currency-picker]');
+  pickers.forEach((picker) => {
+    Object.values(MARKETS).forEach((m) => {
+      const b = el('button', { type: 'button', textContent: m.label, title: `Show prices in ${m.code} and compare with hiring in ${m.place}` });
+      b.dataset.currency = m.code;
+      b.addEventListener('click', () => setCurrency(m.code));
+      picker.append(b);
+    });
+  });
+
+  function renderCurrency() {
+    pickers.forEach((p) => $$('button', p).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.currency === currency))));
+    const fx = currency === 'USD' ? '' : ` Converted from US$ at an example rate of ${market().perUsd} ${currency} per $1.`;
+    $$('[data-fx-note]').forEach((n) => { n.textContent = fx; });
+  }
+
+  function setCurrency(code) {
+    currency = code;
+    fmt = formatterFor(code);
+    try { localStorage.setItem(CURRENCY_KEY, code); } catch (e) { /* storage blocked */ }
+    renderCurrency();
+    if (finder.problem) renderResult();
+    renderPod();
+  }
+
+  renderCurrency();
   renderPod();
 
   // Mobile: show a running total while the rows are on screen and the summary isn't.
